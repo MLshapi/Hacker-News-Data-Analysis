@@ -48,3 +48,4 @@ def parser(df_toParse):
 print(df_trainingSet2018["Post Type"].unique())
 lista = parser(df_trainingSet2018)
 print(lista["Post Type"])
+#kjh

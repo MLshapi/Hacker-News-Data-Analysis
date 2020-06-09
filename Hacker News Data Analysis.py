@@ -1,6 +1,8 @@
 import os
-
+import re
 import pandas as pd
+
+regex = re.compile('[^a-zA-Z0-9\s]')
 
 # setting the path of CSV
 my_path = os.getcwd()
@@ -43,7 +45,7 @@ def expander(df_toParse):
     dict_vocabulary['allWordsInTitle'] = []
     count_TitleIndex = 1
     for row in df_toParse.iterrows():
-        vocabulariesInRow = row[1].Title.split()
+        vocabulariesInRow = regex.sub('', row[1].Title).split()
         rowPostType = row[1]["Post Type"]
         rowTitle = row[1]["Title"]
         rowObjectID = row[1]["Object ID"]
@@ -70,5 +72,11 @@ def expander(df_toParse):
 
 
 df_Expanded_TrainingSet2018 = pd.DataFrame(expander(df_trainingSet2018))
+print(df_Expanded_TrainingSet2018['Post Type'].str.get_dummies().T.dot(pd.get_dummies(df_Expanded_TrainingSet2018["allWordsInTitle"])))
+df_trainingSet2018_stats = df_Expanded_TrainingSet2018.groupby(['Post Type']).count()['allWordsInTitle']
+#df_trainingSet2018_stats = df_Expanded_TrainingSet2018['Post Type'].value_counts().to_frame()
+print(df_trainingSet2018_stats)
+print(g_df['allWordsInTitle'].sum/len(df_Expanded_TrainingSet2018.index) for gName,g_df in df_trainingSet2018_stats)
+df_trainingSet2018_stats["percentages"] = [g_df['allWordsInTitle'].sum/len(df_Expanded_TrainingSet2018.index) for gName,g_df in df_trainingSet2018_stats]
 
-print(df_Expanded_TrainingSet2018)
+

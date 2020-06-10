@@ -1,5 +1,6 @@
 import os
 import re
+
 import pandas as pd
 
 regex = re.compile('[^a-zA-Z0-9\s]')
@@ -72,11 +73,16 @@ def expander(df_toParse):
 
 
 df_Expanded_TrainingSet2018 = pd.DataFrame(expander(df_trainingSet2018))
-print(df_Expanded_TrainingSet2018['Post Type'].str.get_dummies().T.dot(pd.get_dummies(df_Expanded_TrainingSet2018["allWordsInTitle"])))
-df_trainingSet2018_stats = df_Expanded_TrainingSet2018.groupby(['Post Type']).count()['allWordsInTitle']
-#df_trainingSet2018_stats = df_Expanded_TrainingSet2018['Post Type'].value_counts().to_frame()
-print(df_trainingSet2018_stats)
-print(g_df['allWordsInTitle'].sum/len(df_Expanded_TrainingSet2018.index) for gName,g_df in df_trainingSet2018_stats)
-df_trainingSet2018_stats["percentages"] = [g_df['allWordsInTitle'].sum/len(df_Expanded_TrainingSet2018.index) for gName,g_df in df_trainingSet2018_stats]
-
-
+df_Expanded_TrainingSet2018['word_Frequencies'] = df_Expanded_TrainingSet2018['allWordsInTitle'].map(
+    df_Expanded_TrainingSet2018['allWordsInTitle'].value_counts())
+df_Expanded_TrainingSet2018['Post_Type_Frequencies'] = df_Expanded_TrainingSet2018['Post Type'].map(
+    df_Expanded_TrainingSet2018['Post Type'].value_counts())
+word_frequencies_sum = df_Expanded_TrainingSet2018['word_Frequencies'].sum()
+df_Expanded_TrainingSet2018['word_Probabilities'] = df_Expanded_TrainingSet2018['word_Frequencies'].apply(
+    lambda x: x / word_frequencies_sum)
+Post_Type_frequencies_sum = df_Expanded_TrainingSet2018['Post_Type_Frequencies'].sum()
+df_Expanded_TrainingSet2018['Post_Type_Probabilities'] = df_Expanded_TrainingSet2018['Post_Type_Frequencies'].apply(lambda x: x/Post_Type_frequencies_sum)
+all_words_Stats_2018 = df_Expanded_TrainingSet2018[['allWordsInTitle', 'word_Frequencies', 'word_Probabilities']].copy().drop_duplicates().set_index('allWordsInTitle')
+Post_Type_Stats_2018 = df_Expanded_TrainingSet2018[['Post Type', 'Post_Type_Frequencies', 'Post_Type_Probabilities']].copy().drop_duplicates().set_index('Post Type')
+print(all_words_Stats_2018)
+print(Post_Type_Stats_2018)

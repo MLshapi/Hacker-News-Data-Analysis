@@ -1,6 +1,9 @@
 import os
+import re
 
 import pandas as pd
+
+regex = re.compile('[^a-zA-Z0-9\s]')
 
 # setting the path of CSV
 my_path = os.getcwd()
@@ -43,7 +46,7 @@ def expander(df_toParse):
     dict_vocabulary['allWordsInTitle'] = []
     count_TitleIndex = 1
     for row in df_toParse.iterrows():
-        vocabulariesInRow = row[1].Title.split()
+        vocabulariesInRow = regex.sub('', row[1].Title).split()
         rowPostType = row[1]["Post Type"]
         rowTitle = row[1]["Title"]
         rowObjectID = row[1]["Object ID"]
@@ -70,5 +73,16 @@ def expander(df_toParse):
 
 
 df_Expanded_TrainingSet2018 = pd.DataFrame(expander(df_trainingSet2018))
-
-print(df_Expanded_TrainingSet2018)
+df_Expanded_TrainingSet2018['word_Frequencies'] = df_Expanded_TrainingSet2018['allWordsInTitle'].map(
+    df_Expanded_TrainingSet2018['allWordsInTitle'].value_counts())
+df_Expanded_TrainingSet2018['Post_Type_Frequencies'] = df_Expanded_TrainingSet2018['Post Type'].map(
+    df_Expanded_TrainingSet2018['Post Type'].value_counts())
+word_frequencies_sum = df_Expanded_TrainingSet2018['word_Frequencies'].sum()
+df_Expanded_TrainingSet2018['word_Probabilities'] = df_Expanded_TrainingSet2018['word_Frequencies'].apply(
+    lambda x: x / word_frequencies_sum)
+Post_Type_frequencies_sum = df_Expanded_TrainingSet2018['Post_Type_Frequencies'].sum()
+df_Expanded_TrainingSet2018['Post_Type_Probabilities'] = df_Expanded_TrainingSet2018['Post_Type_Frequencies'].apply(lambda x: x/Post_Type_frequencies_sum)
+all_words_Stats_2018 = df_Expanded_TrainingSet2018[['allWordsInTitle', 'word_Frequencies', 'word_Probabilities']].copy().drop_duplicates().set_index('allWordsInTitle')
+Post_Type_Stats_2018 = df_Expanded_TrainingSet2018[['Post Type', 'Post_Type_Frequencies', 'Post_Type_Probabilities']].copy().drop_duplicates().set_index('Post Type')
+print(all_words_Stats_2018)
+print(Post_Type_Stats_2018)

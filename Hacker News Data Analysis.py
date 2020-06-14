@@ -149,14 +149,15 @@ df_Expanded_TrainingSet2018['Post_Type_Frequencies'] = df_Expanded_TrainingSet20
     df_Expanded_TrainingSet2018['Post Type'].value_counts())
 
 # Calculating the Sum of word frequencies for calculating each word Probability
-word_frequencies_sum = df_Expanded_TrainingSet2018['word_Frequencies'].sum()
+word_frequencies_sum = df_Expanded_TrainingSet2018['word_Frequencies'].drop_duplicates().sum()
+
 
 # Calculating the Probability of each word
 df_Expanded_TrainingSet2018['word_Probabilities'] = df_Expanded_TrainingSet2018['word_Frequencies'].apply(
     lambda x: x / word_frequencies_sum)
 
 # Calculating the Sum of Post Type frequencies for calculating each Post Type Probability
-Post_Type_frequencies_sum = df_Expanded_TrainingSet2018['Post_Type_Frequencies'].sum()
+Post_Type_frequencies_sum = df_Expanded_TrainingSet2018['Post_Type_Frequencies'].drop_duplicates().sum()
 
 # Calculating the Probability of each Post Type
 df_Expanded_TrainingSet2018['Post_Type_Probabilities'] = df_Expanded_TrainingSet2018['Post_Type_Frequencies'].apply(
@@ -166,8 +167,6 @@ df_Expanded_TrainingSet2018['Post_Type_Probabilities'] = df_Expanded_TrainingSet
 df_Expanded_TrainingSet2018['P(Post_type, word)'] = df_Expanded_TrainingSet2018['word_Probabilities'] * \
                                                     df_Expanded_TrainingSet2018['Post_Type_Probabilities']
 
-df_Expanded_TrainingSet2018['Post_Type_Probabilities'] = df_Expanded_TrainingSet2018['Post_Type_Frequencies'].apply(
-    lambda x: x / Post_Type_frequencies_sum)
 
 # Calculating P(word | Post_type) = (P(Post_type, word) + smoothing Value)/ P(Post Type)
 df_Expanded_TrainingSet2018['smoothed_Probabilities'] = (df_Expanded_TrainingSet2018['P(Post_type, word)'] + smoothed) / \

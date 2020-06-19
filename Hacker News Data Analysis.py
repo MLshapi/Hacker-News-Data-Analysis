@@ -2,14 +2,12 @@ import operator
 import os
 
 import matplotlib.pyplot as plt
-import numpy as np
 import pandas as pd
 from nltk.tokenize import word_tokenize
 
 # variables
 my_path = os.getcwd()
 smoothed = 0.5
-dict_Models = {}
 accuracies = []
 
 # setting the path of CSV
@@ -21,20 +19,22 @@ df_HackerNewsDataset = pd.read_csv(inputShpFile)
 # assigning the index for the data frame and lowerCase the Title column
 new_columns = df_HackerNewsDataset.columns.values.tolist()
 df_HackerNewsDataset['Title'] = df_HackerNewsDataset['Title'].str.lower()
-# Your code will parse the
-# files in the training set and build a vocabulary with
-# all the words it contains in Title which is Created At 2018.
+
+# splitting the data by year for training and testing purposes
 df_trainingSet2018 = df_HackerNewsDataset[df_HackerNewsDataset.year == 2018]
 df_trainingSet2018 = df_trainingSet2018[['Title', 'Post Type', 'year']]
 df_Set2019 = df_HackerNewsDataset[df_HackerNewsDataset.year == 2019]
 df_Set2019 = df_Set2019[['Title', 'Post Type', 'year']]
 
 
-# split a string in cell and expand the data frame by a row for each word in the string
+# expanding Dataframe by splitting string column
 def df_strSplitInRows_toDic(df_arg, colName):
+    # making a dictionary of columns names with empty arrays
     dict_colValues = {k: [] for k in df_arg.columns.values.tolist()}
+    # adding item to the dictionary to contains the words of string that we are going to split
     dict_colValues['wordIn_' + colName] = []
     allColNames = df_arg.columns.values.tolist() + ['wordIn_' + colName]
+    # looping through the rows in df_arg and filling the dict_colValues
     for row in df_arg.iterrows():
         tokens = word_tokenize(row[1][colName])
         # remove all tokens that are not alphabetic
@@ -52,6 +52,7 @@ def df_strSplitInRows_toDic(df_arg, colName):
     return dict_colValues
 
 
+# wring the model into a txt file & creating vocabulary txt file
 def df_to_txtFile_model(df_arg, txtFile_arg):
     txtFile_arg.truncate(0)
     file_vocabulary = open(my_path + '\\vocabulary-' + trainYear + '.txt', "w", encoding='utf-8')
@@ -64,6 +65,7 @@ def df_to_txtFile_model(df_arg, txtFile_arg):
         row_number += 1
         txtFile_arg.write("  ")
         txtFile_arg.write(word)
+        # creating the vocabulary list txt
         file_vocabulary.write(word)
         file_vocabulary.write("\n")
         index_PostType = 0
@@ -76,49 +78,56 @@ def df_to_txtFile_model(df_arg, txtFile_arg):
             index_PostType += 1
 
 
+# Function to Create the model
 def createModel(nameOfModel_arg):
     model = pd.read_csv(my_path + "\\" + nameOfModel_arg + ".txt", sep="  ", engine='python', header=None)
     model = model[[x for x in model.columns if x % 2 != 0]]
     model.columns = ['word'] + postTypeOrder
     model.set_index('word', inplace=True)
-    dict_Models[nameOfModel_arg] = model
     return model
 
 
+# function to test the model with set of data
 def df_tester(df_arg, model_arg, resultsFile_arg):
     wrongPrediction = 0
     rightPrediction = 0
     rowNum = 1
-    for row in df_arg.iterrows():
-        result = TitleTypeFinder(row[1].Title, row[1]['Post Type'], model_arg, rowNum, resultsFile_arg)
+    for rowIn in df_arg.iterrows():
+        result = TitleTypeFinder(rowIn[1].Title, rowIn[1]['Post Type'], model_arg, rowNum, resultsFile_arg)
         rowNum += 1
-        if result == True:
+        if result:
             rightPrediction += 1
         else:
             wrongPrediction += 1
-
+    # printing some stats to show the accuracy of the model
     print("There are ", rightPrediction, "Right Predictions!")
     print("There are ", wrongPrediction, "wrong Predictions!")
     currentAccuracy = rightPrediction / (rightPrediction + wrongPrediction) * 100
+    # storing the result for comparision purpose
     accuracies.append(currentAccuracy)
     print("The acuracy of the Model is ", currentAccuracy, "%")
 
 
+# to predict the type of the title
 def TitleTypeFinder(sentence_arg, actualType, model_arg, rowNum, resultsFile_arg):
     tokens = word_tokenize(sentence_arg)
+    # dictionary to stores the scores of each words in order to predict the most likely postType
     dict_results = {typeScore: 0 for typeScore in postTypeOrder}
     for word in tokens:
+        # check if the word is in model and it is also means it is in vocabulary
         if word in model_arg.index:
-            for type in postTypeOrder:
-                x = model_arg.loc[word, type]
-                dict_results[type] = dict_results[type] + x
+            for postType in postTypeOrder:
+                x = model_arg.loc[word, postType]
+                dict_results[postType] = dict_results[postType] + x
 
     partialReport = ''
     for x in dict_results.items():
         partialReport = partialReport + "  " + str(x[1])
 
+    # picking the maximum Value
     probableType = max(dict_results.items(), key=operator.itemgetter(1))[0]
 
+    # writing the report with the predictions
     if actualType == probableType:
         fullReport = str(
             rowNum) + "  " + sentence_arg + "  " + probableType + "  " + partialReport + "  " + actualType + "  Right"
@@ -131,20 +140,6 @@ def TitleTypeFinder(sentence_arg, actualType, model_arg, rowNum, resultsFile_arg
         resultsFile_arg.write(fullReport)
         resultsFile_arg.write("\n")
         return False
-
-
-def choosingModel():
-    print("choose a Model to do do an Experiment on :")
-    rowNum = 1
-    for m in dict_Models.keys():
-        print(rowNum, " ", m)
-        rowNum += 1
-    userInput = int(input())
-    counter = 0
-    for m in dict_Models.keys():
-        if counter == userInput - 1:
-            return dict_Models[m]
-        counter += 1
 
 
 if __name__ == '__main__':
@@ -167,6 +162,7 @@ if __name__ == '__main__':
     file_frequentFilteringResult = open(my_path + '\\frequentFiltering-Result-' + testYear + '.txt', "w",
                                         encoding='utf-8')
     file_vocabulary = open(my_path + '\\vocabulary-' + trainYear + '.txt', "w", encoding='utf-8')
+    file_removedWordsAfterExperiment = open(my_path + '\\wordlength-Result-' + testYear + '.txt', "w", encoding='utf-8')
 
     # Adding column to data frame mapped to frequencies to each word
     df_Expanded_TrainingSet2018['word_Frequencies'] = df_Expanded_TrainingSet2018['wordIn_Title'].map(
@@ -178,8 +174,8 @@ if __name__ == '__main__':
 
     # sorting
     df_Expanded_TrainingSet2018.sort_values(['wordIn_Title', 'Post Type'], inplace=True)
-    # creating table of Post Type Probabilities
 
+    # creating pivot table of Post Type Probabilities which helps to know the frequency of each word in each postType
     baseline_model = df_Expanded_TrainingSet2018[['wordIn_Title', 'word_Frequencies', 'Post Type']].copy().pivot_table(
         index='wordIn_Title',
         columns='Post Type',
@@ -187,24 +183,32 @@ if __name__ == '__main__':
         fill_value=0.0
     )
 
+    # sorting the pivot table for Experiment number 3
+    baseline_model['sum_cols'] = baseline_model.sum(axis=1)
+    baseline_model = baseline_model.sort_values('sum_cols', ascending=False).drop(['sum_cols'], axis=1)
+
+    # removing the words that has equal frequency in each type because it dose not gives any indication about postType
     indexToRemove = baseline_model[baseline_model.max(axis=1) == baseline_model.min(axis=1)]
     for wordToRemove, row in indexToRemove.iterrows():
         file_removedWords.write(wordToRemove)
         file_removedWords.write("\n")
+    baseline_model = baseline_model.drop(indexToRemove.index)
 
+    # creating some Variable to ease the coding process
     postTypeOrder = [colName[1] for colName in baseline_model.columns]
     postType_Freq = df_Expanded_TrainingSet2018['Post_Type_Frequencies'].to_dict()
     postType_Freq_total = sum(postType_Freq)
-    print(indexToRemove.index)
-    # Delete rows that have similar
-    baseline_model = baseline_model.drop(indexToRemove.index)
 
+    # creating the baseline txt file
     df_to_txtFile_model(baseline_model, file_baselineModel)
 
-    model_2018 = createModel("model-2018")
+    # creating the dataFrame model of baseline to use it in the prediction process
+    baseLine_model_2018 = createModel("model-2018")
 
-    df_tester(df_Set2019, model_2018, file_baselineResult)
+    # testing the model with testing data
+    df_tester(df_Set2019, baseLine_model_2018, file_baselineResult)
 
+    # creating lists of stopWords & vocabularies & removed words for convenience
     list_stopWords = pd.read_csv(my_path + "\\Stop Words.txt", sep="\n", engine='python', header=None).set_index(
         0).index
     f = open('vocabulary-2018.txt', 'r+')
@@ -214,94 +218,114 @@ if __name__ == '__main__':
     list_removedWords = [word for word in f.read().splitlines()]
     f.close()
 
+# beginning of Experiments
     print("\n")
     print("Experiments Time ...")
-
     while True:
-        ans = input('Do you want remove Stop words? (Y/N)')
-        if ans == '' or not ans[0].lower() in ['y', 'n']:
-            print('Please answer with yes or no!')
-        else:
-            break
+        print("\n")
+        while True:
+            print("Which Experiment would you like to try:")
+            print("1) remove Stop words")
+            print("2) remove words according to their lengths")
+            print("3) show how accuracy changes by removing words according to their frequencies")
+            print("press 0 to exits!")
+            ans = int(input())
+            if 0 <= ans <= 3:
+                break
+            else:
+                print("please enter a valid number")
 
-    list_removedWords_new = list_removedWords.copy()
-    if ans[0].lower() == 'y':
-        newModel = baseline_model.copy()
-        for word in baseline_model.index:
-            if word in list_stopWords:
-                newModel = newModel.drop(word)
-                list_removedWords_new.append(word)
-        df_to_txtFile_model(newModel, file_stopwordModel)
-        newModel = createModel("stopWord-model-2018")
-        df_tester(df_Set2019, newModel, file_stopWordResult)
-        file_removedWordsE1 = open(my_path + '\\removedWords-stopWords-' + trainYear + '.txt', "w", encoding='utf-8')
-        for word in list_removedWords_new:
-            file_removedWords.write(word)
-            file_removedWords.write(" ")
-
-    while True:
-        ans = input('Do you want remove words with length not between 3 AND 9? (Y/N)')
-        if ans == '' or not ans[0].lower() in ['y', 'n']:
-            print('Please answer with yes or no!')
-        else:
-            break
-
-    list_removedWords_new = list_removedWords.copy()
-    if ans[0].lower() == 'y':
-        newModel = baseline_model.copy()
-        indexToRemove = [word for word in newModel.index if len(word) <= 2 or len(word) >= 9]
-        newModel = newModel.drop(indexToRemove)
-        df_to_txtFile_model(newModel, file_wordlengthModel)
-        newModel = createModel("wordlength-Model-2018")
-        df_tester(df_Set2019, newModel, file_baselineResult)
-
-    while True:
-        ans = input('Do you want try E3? (Y/N)')
-        if ans == '' or not ans[0].lower() in ['y', 'n']:
-            print('Please answer with yes or no!')
-        else:
-            break
-
-    if ans[0].lower() == 'y':
-        arrFreq = [1, 5, 10, 15, 20]
-        accuracies = []
-        for num in arrFreq:
+        # experiment Number 1 : removing stop words and check if the model gets better
+        if ans == 1:
             list_removedWords_new = list_removedWords.copy()
             newModel = baseline_model.copy()
-            indexToRemove = newModel[baseline_model.sum(axis=1) <= num]
-            newModel = newModel.drop(indexToRemove.index)
-            for wordToRemove, row in indexToRemove.iterrows():
-                list_removedWords_new.append(wordToRemove)
-            df_to_txtFile_model(newModel, file_frequentFilteringModel)
-            newModel = createModel("frequentFiltering-Model-2018")
-            df_tester(df_Set2019, newModel, file_frequentFilteringResult)
-            print('\n')
-        # this is for plotting purpose
-        arrLabels = ['1<freq', '5<freq', '10<freq', '15<freq', '20<freq']
-        dict_toPlot = {"accuracies": accuracies, "Labels": arrLabels}
-        df = pd.DataFrame(dict_toPlot, index=arrLabels).plot(kind='bar')
-        plt.show()
+            for word in baseline_model.index:
+                if word in list_stopWords:
+                    newModel = newModel.drop(word)
+                    list_removedWords_new.append(word)
+            df_to_txtFile_model(newModel, file_stopwordModel)
+            newModel = createModel("stopWord-model-2018")
+            df_tester(df_Set2019, newModel, file_stopWordResult)
+            file_removedWordsE1 = open(my_path + '\\removedWords-stopWords-' + trainYear + '.txt', "w",
+                                       encoding='utf-8')
+            # creating removed words list
+            for word in list_removedWords_new:
+                file_removedWordsAfterExperiment.write(word)
+                file_removedWordsAfterExperiment.write("\n")
+            # check if the result is better than the baseline model
+            if accuracies[0] == accuracies[-1]:
+                print("no Changes")
+            elif accuracies[0] < accuracies[-1]:
+                print("better model by ", accuracies[-1] - accuracies[0], '%')
+            else:
+                print("worse model by ", accuracies[0] - accuracies[-1], '%')
 
-        baseline_model_sorted = baseline_model.copy()
-        baseline_model_sorted['sum_cols'] = baseline_model_sorted.sum(axis=1)
-        baseline_model_sorted = baseline_model_sorted.sort_values('sum_cols', ascending=False)
-        baseline_model_sorted = baseline_model_sorted.drop(['sum_cols'], axis=1)
-
-        arrFreqPercentages = [5, 10, 15, 20, 25]
-        accuracies = []
-        for num in arrFreqPercentages:
+        # experiment Number 2 : removing words according to their length and check if the model gets better
+        if ans == 2:
             list_removedWords_new = list_removedWords.copy()
-            numOfRows = len(baseline_model.index) - int((len(baseline_model.index)*num)/100)
-            indexToRemove = baseline_model_sorted.head(int((len(baseline_model.index)*num)/100)).index
-            newModel = baseline_model_sorted.tail(numOfRows)
-            # for wordToRemove, row in indexToRemove.iterrows():
-            #     list_removedWords_new.append(wordToRemove)
-            df_to_txtFile_model(newModel, file_frequentFilteringModel)
-            newModel = createModel("frequentFiltering-Model-2018")
-            df_tester(df_Set2019, newModel, file_frequentFilteringResult)
-            print('\n')
-        # this is for plotting purpose
-        arrLabels = ['5%', '10%', '15%', '20%', '25%']
-        dict_toPlot = {"accuracies": accuracies, "Labels": arrLabels}
-        df = pd.DataFrame(dict_toPlot, index=arrLabels).plot(kind='bar')
-        plt.show()
+            newModel = baseline_model.copy()
+            indexToRemove = [word for word in newModel.index if len(word) <= 2 or len(word) >= 9]
+            newModel = newModel.drop(indexToRemove)
+            df_to_txtFile_model(newModel, file_wordlengthModel)
+            newModel = createModel("wordlength-Model-2018")
+            df_tester(df_Set2019, newModel, file_baselineResult)
+            # creating removed words list
+            for word in list_removedWords_new:
+                file_removedWordsAfterExperiment.write(word)
+                file_removedWordsAfterExperiment.write("\n")
+            for word in indexToRemove:
+                file_removedWordsAfterExperiment.write(word)
+                file_removedWordsAfterExperiment.write("\n")
+            # check if the result is better than the baseline model
+            if accuracies[0] == accuracies[-1]:
+                print("no Changes")
+            elif accuracies[0] < accuracies[-1]:
+                print("better model by ", accuracies[-1] - accuracies[0], '%')
+            else:
+                print("worse model by ", accuracies[0] - accuracies[-1], '%')
+
+        # experiment Number 3 : removing words words according their frequencies and plot the results
+        if ans == 3:
+            # first part of experiment 3
+            arrFreq = [1, 5, 10, 15, 20]
+            accuracies = []
+            list_removedWords_new = list_removedWords.copy()
+            for num in arrFreq:
+                newModel = baseline_model.copy()
+                indexToRemove = newModel[baseline_model.sum(axis=1) <= num]
+                newModel = newModel.drop(indexToRemove.index)
+                for wordToRemove, row in indexToRemove.iterrows():
+                    list_removedWords_new.append(wordToRemove)
+                df_to_txtFile_model(newModel, file_frequentFilteringModel)
+                newModel = createModel("frequentFiltering-Model-2018")
+                df_tester(df_Set2019, newModel, file_frequentFilteringResult)
+                print('\n')
+            for word in list_removedWords_new:
+                file_removedWordsAfterExperiment.write(word)
+                file_removedWordsAfterExperiment.write("\n")
+            # this is for plotting purpose
+            arrLabels = ['1<freq', '5<freq', '10<freq', '15<freq', '20<freq']
+            dict_toPlot = {"accuracies": accuracies, "Labels": arrLabels}
+            pd.DataFrame(dict_toPlot, index=arrLabels).plot(kind='bar')
+            plt.show()
+
+            # second part of experiment 3
+            baseline_model_sorted = baseline_model.copy()
+            arrFreqPercentages = [5, 10, 15, 20, 25]
+            accuracies = []
+            for num in arrFreqPercentages:
+                list_removedWords_new = list_removedWords.copy()
+                numOfRows = len(baseline_model.index) - int((len(baseline_model.index) * num) / 100)
+                indexToRemove = baseline_model_sorted.head(int((len(baseline_model.index) * num) / 100)).index
+                newModel = baseline_model_sorted.tail(numOfRows)
+                # for wordToRemove, row in indexToRemove.iterrows():
+                #     list_removedWords_new.append(wordToRemove)
+                df_to_txtFile_model(newModel, file_frequentFilteringModel)
+                newModel = createModel("frequentFiltering-Model-2018")
+                df_tester(df_Set2019, newModel, file_frequentFilteringResult)
+                print('\n')
+            # this is for plotting purpose
+            arrLabels = ['5%', '10%', '15%', '20%', '25%']
+            dict_toPlot = {"accuracies": accuracies, "Labels": arrLabels}
+            pd.DataFrame(dict_toPlot, index=arrLabels).plot(kind='bar')
+            plt.show()

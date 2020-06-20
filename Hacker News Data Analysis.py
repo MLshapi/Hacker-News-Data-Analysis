@@ -1,6 +1,10 @@
+# -------------------------------------------------------
+# Assignment (2)
+# Written by (Moayad ALshapi and student id: 40037861)
+# For COMP 472 Section (IX) – Summer 2020
+# --------------------------------------------------------
 import operator
 import os
-
 import matplotlib.pyplot as plt
 import pandas as pd
 from nltk.tokenize import word_tokenize
@@ -9,6 +13,7 @@ from nltk.tokenize import word_tokenize
 my_path = os.getcwd()
 smoothed = 0.5
 accuracies = []
+
 
 # setting the path of CSV
 inputShpFile = my_path + "\hns_2018_2019.csv"
@@ -20,10 +25,12 @@ df_HackerNewsDataset = pd.read_csv(inputShpFile)
 new_columns = df_HackerNewsDataset.columns.values.tolist()
 df_HackerNewsDataset['Title'] = df_HackerNewsDataset['Title'].str.lower()
 
+years = df_HackerNewsDataset['year'].drop_duplicates().values
+
 # splitting the data by year for training and testing purposes
-df_trainingSet2018 = df_HackerNewsDataset[df_HackerNewsDataset.year == 2018]
+df_trainingSet2018 = df_HackerNewsDataset[df_HackerNewsDataset.year == years.min()]
 df_trainingSet2018 = df_trainingSet2018[['Title', 'Post Type', 'year']]
-df_Set2019 = df_HackerNewsDataset[df_HackerNewsDataset.year == 2019]
+df_Set2019 = df_HackerNewsDataset[df_HackerNewsDataset.year == years.max()]
 df_Set2019 = df_Set2019[['Title', 'Post Type', 'year']]
 
 

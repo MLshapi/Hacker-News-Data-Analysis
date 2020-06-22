@@ -25,7 +25,8 @@ df_HackerNewsDataset = pd.read_csv(inputShpFile)
 new_columns = df_HackerNewsDataset.columns.values.tolist()
 df_HackerNewsDataset['Title'] = df_HackerNewsDataset['Title'].str.lower()
 
-years = df_HackerNewsDataset['year'].drop_duplicates().values
+df_HackerNewsDataset['Created AT Year'] = pd.DatetimeIndex(df_HackerNewsDataset['Created At']).year
+years = df_HackerNewsDataset['Created AT Year'].drop_duplicates().values
 
 # splitting the data by year for training and testing purposes
 df_trainingSet2018 = df_HackerNewsDataset[df_HackerNewsDataset.year == years.min()]
@@ -80,7 +81,7 @@ def df_to_txtFile_model(df_arg, txtFile_arg):
             txtFile_arg.write("  ")
             txtFile_arg.write(str(postTypeAndWordFreq))
             txtFile_arg.write("  ")
-            prob = ((postTypeAndWordFreq + smoothed) / (postType_Freq[index_PostType] + vocabularySetSize))
+            prob = ((postTypeAndWordFreq + smoothed) / (postType_Freq.iloc[index_PostType] + smoothed*vocabularySetSize))
             txtFile_arg.write(str("{:.7f}".format(prob)))
             index_PostType += 1
     file_vocabulary.flush()
@@ -143,14 +144,16 @@ def TitleTypeFinder(sentence_arg, actualType, model_arg, rowNum, resultsFile_arg
             rowNum) + "  " + sentence_arg + "  " + probableType + "  " + partialReport + "  " + actualType + "  Right"
         resultsFile_arg.write(fullReport)
         resultsFile_arg.write("\n")
+        resultsFile_arg.flush()
         return True
     else:
         fullReport = str(
             rowNum) + "  " + sentence_arg + "  " + probableType + "  " + partialReport + "  " + actualType + "  Wrong"
         resultsFile_arg.write(fullReport)
         resultsFile_arg.write("\n")
+        resultsFile_arg.flush()
         return False
-    resultsFile_arg.flush()
+
 
 
 if __name__ == '__main__':
@@ -192,10 +195,6 @@ if __name__ == '__main__':
         fill_value=0.0
     )
 
-    # sorting the pivot table for Experiment number 3
-    baseline_model['sum_cols'] = baseline_model.sum(axis=1)
-    baseline_model = baseline_model.sort_values('sum_cols', ascending=False).drop(['sum_cols'], axis=1)
-
     # removing the words that has equal frequency in each type because it dose not gives any indication about postType
     indexToRemove = baseline_model[baseline_model.max(axis=1) == baseline_model.min(axis=1)]
     for wordToRemove, row in indexToRemove.iterrows():
@@ -206,7 +205,7 @@ if __name__ == '__main__':
 
     # creating some Variable to ease the coding process
     postTypeOrder = [colName[1] for colName in baseline_model.columns]
-    postType_Freq = df_Expanded_TrainingSet2018['Post_Type_Frequencies'].to_dict()
+    postType_Freq = df_Expanded_TrainingSet2018['Post_Type_Frequencies'].drop_duplicates()
     postType_Freq_total = sum(postType_Freq)
 
     # creating the baseline txt file
@@ -269,6 +268,8 @@ if __name__ == '__main__':
                 print("better model by ", accuracies[-1] - accuracies[0], '%')
             else:
                 print("worse model by ", accuracies[0] - accuracies[-1], '%')
+            file_removedWordsAfterExperiment.flush()
+            file_removedWordsAfterExperiment.close()
 
         # experiment Number 2 : removing words according to their length and check if the model gets better
         if ans == 2:
@@ -304,18 +305,24 @@ if __name__ == '__main__':
                 print("better model by ", accuracies[-1] - accuracies[0], '%')
             else:
                 print("worse model by ", accuracies[0] - accuracies[-1], '%')
+            file_removedWordsAfterExperiment.flush()
+            file_removedWordsAfterExperiment.close()
 
         # experiment Number 3 : removing words words according their frequencies and plot the results
         if ans == 3:
+            newModelSorted = baseline_model.copy()
+            # sorting the pivot table for Experiment number 3
+            newModelSorted['sum_cols'] = newModelSorted.sum(axis=1)
+            newModelSorted = newModelSorted.sort_values('sum_cols', ascending=False).drop(['sum_cols'], axis=1)
             file_removedWordsAfterExperiment = open(
                 my_path + '\\removedWordsExperiment-frequencies 1 -' + testYear + '.txt', "w", encoding='utf-8')
             # first part of experiment 3
             arrFreq = [1, 5, 10, 15, 20]
             accuracies = []
             for num in arrFreq:
+                newModel = newModelSorted.copy()
                 list_removedWords_new = list_removedWords.copy()
-                newModel = baseline_model.copy()
-                indexToRemove = newModel[baseline_model.sum(axis=1) <= num]
+                indexToRemove = newModel[newModel.sum(axis=1) <= num]
                 newModel = newModel.drop(indexToRemove.index)
                 for wordToRemove, row in indexToRemove.iterrows():
                     list_removedWords_new.append(wordToRemove)
@@ -337,14 +344,14 @@ if __name__ == '__main__':
             # second part of experiment 3
             file_removedWordsAfterExperiment = open(
                 my_path + '\\removedWordsExperiment-frequencies 2 -' + testYear + '.txt', "w", encoding='utf-8')
-            baseline_model_sorted = baseline_model.copy()
+            newModel = newModelSorted.copy()
             arrFreqPercentages = [5, 10, 15, 20, 25]
             accuracies = []
             for num in arrFreqPercentages:
                 list_removedWords_new = list_removedWords.copy()
                 numOfRows = len(baseline_model.index) - int((len(baseline_model.index) * num) / 100)
-                indexToRemove = baseline_model_sorted.head(int((len(baseline_model.index) * num) / 100)).index
-                newModel = baseline_model_sorted.tail(numOfRows)
+                indexToRemove = newModelSorted.head(int((len(baseline_model.index) * num) / 100)).index
+                newModel = newModelSorted.tail(numOfRows)
                 for wordToRemove in indexToRemove:
                     list_removedWords_new.append(wordToRemove)
                 df_to_txtFile_model(newModel, file_frequentFilteringModel)
@@ -362,6 +369,3 @@ if __name__ == '__main__':
             pd.DataFrame(dict_toPlot, index=arrLabels).plot(kind='bar')
             plt.show()
 
-        if ans != 3:
-            file_removedWordsAfterExperiment.flush()
-            file_removedWordsAfterExperiment.close()

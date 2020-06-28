@@ -9,7 +9,7 @@ import matplotlib.pyplot as plt
 import pandas as pd
 from nltk.tokenize import word_tokenize
 
-# variables
+# variables &
 my_path = os.getcwd()
 smoothed = 0.5
 accuracies = []

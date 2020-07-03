@@ -8,8 +8,9 @@ import os
 import matplotlib.pyplot as plt
 import pandas as pd
 from nltk.tokenize import word_tokenize
+import math
 
-# variables &
+# variables
 my_path = os.getcwd()
 smoothed = 0.5
 accuracies = []
@@ -129,7 +130,7 @@ def TitleTypeFinder(sentence_arg, actualType, model_arg, rowNum, resultsFile_arg
         if word in model_arg.index:
             for postType in postTypeOrder:
                 x = model_arg.loc[word, postType]
-                dict_results[postType] = dict_results[postType] + x
+                dict_results[postType] = dict_results[postType] + math.log10(x)
 
     partialReport = ''
     for x in dict_results.items():
@@ -234,6 +235,7 @@ if __name__ == '__main__':
     while True:
         print("\n")
         while True:
+            print("Press 0 to End..")
             print("Which Experiment would you like to try:")
             print("1) remove Stop words")
             print("2) remove words according to their lengths")
@@ -243,6 +245,11 @@ if __name__ == '__main__':
                 break
             else:
                 print("please enter a valid number")
+
+        #End the Code
+        if ans == 0:
+            print("THE CODE ENDED!..")
+            break
 
         # experiment Number 1 : removing stop words and check if the model gets better
         if ans == 1:
@@ -368,4 +375,3 @@ if __name__ == '__main__':
             dict_toPlot = {"accuracies": accuracies, "Labels": arrLabels}
             pd.DataFrame(dict_toPlot, index=arrLabels).plot(kind='bar')
             plt.show()
-

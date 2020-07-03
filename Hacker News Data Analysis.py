@@ -3,18 +3,18 @@
 # Written by (Moayad ALshapi and student id: 40037861)
 # For COMP 472 Section (IX) – Summer 2020
 # --------------------------------------------------------
+import math
 import operator
 import os
+
 import matplotlib.pyplot as plt
 import pandas as pd
 from nltk.tokenize import word_tokenize
-import math
 
 # variables
 my_path = os.getcwd()
 smoothed = 0.5
 accuracies = []
-
 
 # setting the path of CSV
 inputShpFile = my_path + "\hns_2018_2019.csv"
@@ -44,13 +44,13 @@ def df_strSplitInRows_toDic(df_arg, colName):
     dict_colValues['wordIn_' + colName] = []
     allColNames = df_arg.columns.values.tolist() + ['wordIn_' + colName]
     # looping through the rows in df_arg and filling the dict_colValues
-    for row in df_arg.iterrows():
-        tokens = word_tokenize(row[1][colName])
+    for currentRow in df_arg.iterrows():
+        tokens = word_tokenize(currentRow[1][colName])
         # remove all tokens that are not alphabetic
         vocabularies = [word for word in tokens if word.isalpha()]
         rowValues = []
         for i in range(len(df_arg.columns.values.tolist())):
-            rowValues.append(row[1][i])
+            rowValues.append(currentRow[1][i])
         for d in vocabularies:
             countRowValues = 1
             for c in allColNames:
@@ -67,7 +67,7 @@ def df_to_txtFile_model(df_arg, txtFile_arg):
     file_vocabulary = open(my_path + '\\vocabulary-' + trainYear + '.txt', "w", encoding='utf-8')
     vocabularySetSize = len(df_arg.index)
     row_number = 1
-    for word, row in df_arg.iterrows():
+    for word, currentRow in df_arg.iterrows():
         if row_number != 1:
             txtFile_arg.write("\n")
         txtFile_arg.write(str(row_number))
@@ -78,11 +78,12 @@ def df_to_txtFile_model(df_arg, txtFile_arg):
         file_vocabulary.write(word)
         file_vocabulary.write("\n")
         index_PostType = 0
-        for postTypeAndWordFreq in row:
+        for postTypeAndWordFreq in currentRow:
             txtFile_arg.write("  ")
             txtFile_arg.write(str(postTypeAndWordFreq))
             txtFile_arg.write("  ")
-            prob = ((postTypeAndWordFreq + smoothed) / (postType_Freq.iloc[index_PostType] + smoothed*vocabularySetSize))
+            prob = ((postTypeAndWordFreq + smoothed) / (
+                    postType_Freq.iloc[index_PostType] + smoothed * vocabularySetSize))
             txtFile_arg.write(str("{:.7f}".format(prob)))
             index_PostType += 1
     file_vocabulary.flush()
@@ -92,7 +93,7 @@ def df_to_txtFile_model(df_arg, txtFile_arg):
 # Function to Create the model
 def createModel(nameOfModel_arg):
     model = pd.read_csv(my_path + "\\" + nameOfModel_arg + ".txt", sep="  ", engine='python', header=None)
-    model = model[[x for x in model.columns if x % 2 != 0]]
+    model = model[[col for col in model.columns if col % 2 != 0]]
     model.columns = ['word'] + postTypeOrder
     model.set_index('word', inplace=True)
     return model
@@ -129,12 +130,12 @@ def TitleTypeFinder(sentence_arg, actualType, model_arg, rowNum, resultsFile_arg
         # check if the word is in model and it is also means it is in vocabulary
         if word in model_arg.index:
             for postType in postTypeOrder:
-                x = model_arg.loc[word, postType]
-                dict_results[postType] = dict_results[postType] + math.log10(x)
+                prob = model_arg.loc[word, postType]
+                dict_results[postType] = dict_results[postType] + math.log10(prob)
 
     partialReport = ''
-    for x in dict_results.items():
-        partialReport = partialReport + "  " + str(x[1])
+    for res in dict_results.items():
+        partialReport = partialReport + "  " + str(res[1])
 
     # picking the maximum Value
     probableType = max(dict_results.items(), key=operator.itemgetter(1))[0]
@@ -154,7 +155,6 @@ def TitleTypeFinder(sentence_arg, actualType, model_arg, rowNum, resultsFile_arg
         resultsFile_arg.write("\n")
         resultsFile_arg.flush()
         return False
-
 
 
 if __name__ == '__main__':
@@ -246,7 +246,7 @@ if __name__ == '__main__':
             else:
                 print("please enter a valid number")
 
-        #End the Code
+        # End the Code
         if ans == 0:
             print("THE CODE ENDED!..")
             break
